@@ -26,7 +26,7 @@ jobs:
 
       - name: Download SDL2
         run: |
-          apt-get install -y --no-install-recommends libsdl2-image-dev, libsdl2-mixer-dev, libsdl2-ttf-dev, libsdl2-gfx-dev
+          sudo apt install -y --no-install-recommends libsdl2-image-dev, libsdl2-mixer-dev, libsdl2-ttf-dev, libsdl2-gfx-dev
 
       - name: Checkout the code
         uses: actions/checkout@v3
