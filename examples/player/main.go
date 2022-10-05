@@ -1,354 +1,122 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
+	"flag"
 	"fmt"
-	"image"
-	"time"
+	"os"
 
-	"github.com/faiface/beep"
-	"github.com/faiface/beep/speaker"
-	"github.com/hajimehoshi/ebiten"
+	// Export global variables for NVIDIA and AMD drivers so that they use high performance graphics rendering settings. Without this, the default integrated GPU will be used.
 	_ "github.com/silbinarywolf/preferdiscretegpu"
-	"github.com/zergon321/reisen"
+
+	"github.com/boseca/go-sdl2-ffmpeg/sfplay"
+	"github.com/veandco/go-sdl2/sdl"
 )
 
-const (
-	width                             = 1280
-	height                            = 720
-	frameBufferSize                   = 1024
-	sampleRate                        = 44100
-	channelCount                      = 2
-	bitDepth                          = 8
-	sampleBufferSize                  = 32 * channelCount * bitDepth * 1024
-	SpeakerSampleRate beep.SampleRate = 44100
+var (
+	winTitle            string = "Go-SDL2 Render"
+	winWidth, winHeight int32  = 800, 600
 )
 
-// readVideoAndAudio reads video and audio frames
-// from the opened media and sends the decoded
-// data to che channels to be played.
-func readVideoAndAudio(media *reisen.Media) (<-chan *image.RGBA, <-chan [2]float64, chan error, error) {
-	frameBuffer := make(chan *image.RGBA,
-		frameBufferSize)
-	sampleBuffer := make(chan [2]float64, sampleBufferSize)
-	errs := make(chan error)
+func playVideo(fileName string, audioOn bool, fitWindow bool) int {
+	var window *sdl.Window
+	var renderer *sdl.Renderer
 
-	err := media.OpenDecode()
+	// initialize SDL
+	if err := sdl.Init(sdl.INIT_VIDEO | sdl.INIT_AUDIO | sdl.INIT_TIMER); err != nil {
+		panic(err)
+	}
+	defer sdl.Quit()
 
+	// register custom SDL event
+	frameEvent := sdl.RegisterEvents(1)
+
+	// create Window GUI
+	window, err := sdl.CreateWindow(winTitle, sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, winWidth, winHeight, sdl.WINDOW_SHOWN|sdl.WINDOW_RESIZABLE)
 	if err != nil {
-		return nil, nil, nil, err
+		fmt.Fprintf(os.Stderr, "Failed to create window: %s\n", err)
+		return 1
+	}
+	defer window.Destroy()
+
+	// create Renderer
+	renderer, err = sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create renderer: %s\n", err)
+		return 2
+	}
+	defer renderer.Destroy()
+
+	// // OPTIONAL: sometimes CRASHES the app!
+	// surface, err := window.GetSurface()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// surface.FillRect(nil, 0)
+	// rect := sdl.Rect{0, 0, 200, 200}
+	// surface.FillRect(&rect, 0xffff0000)
+	// window.UpdateSurface()
+
+	// Start video
+	vp := sfplay.NewVideoPlayDefault(fileName, frameEvent, audioOn)
+	vp.Start(renderer)
+
+	// Resize video to fit window
+	if fitWindow {
+		vp.Resize(winWidth, winHeight)
 	}
 
-	videoStream := media.VideoStreams()[0]
-	err = videoStream.Open()
+	running := true
 
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	audioStream := media.AudioStreams()[0]
-	err = audioStream.Open()
-
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	/*err = media.Streams()[0].Rewind(60 * time.Second)
-
-	if err != nil {
-		return nil, nil, nil, err
-	}*/
-
-	/*err = media.Streams()[0].ApplyFilter("h264_mp4toannexb")
-
-	if err != nil {
-		return nil, nil, nil, err
-	}*/
-
-	go func() {
-		for {
-			packet, gotPacket, err := media.ReadPacket()
-
-			if err != nil {
-				go func(err error) {
-					errs <- err
-				}(err)
-			}
-
-			if !gotPacket {
-				break
-			}
-
-			/*hash := sha256.Sum256(packet.Data())
-			fmt.Println(base58.Encode(hash[:]))*/
-
-			switch packet.Type() {
-			case reisen.StreamVideo:
-				s := media.Streams()[packet.StreamIndex()].(*reisen.VideoStream)
-				videoFrame, gotFrame, err := s.ReadVideoFrame()
-
-				if err != nil {
-					go func(err error) {
-						errs <- err
-					}(err)
-				}
-
-				if !gotFrame {
-					break
-				}
-
-				if videoFrame == nil {
-					continue
-				}
-
-				frameBuffer <- videoFrame.Image()
-
-			case reisen.StreamAudio:
-				s := media.Streams()[packet.StreamIndex()].(*reisen.AudioStream)
-				audioFrame, gotFrame, err := s.ReadAudioFrame()
-
-				if err != nil {
-					go func(err error) {
-						errs <- err
-					}(err)
-				}
-
-				if !gotFrame {
-					break
-				}
-
-				if audioFrame == nil {
-					continue
-				}
-
-				// Turn the raw byte data into
-				// audio samples of type [2]float64.
-				reader := bytes.NewReader(audioFrame.Data())
-
-				// See the README.md file for
-				// detailed scheme of the sample structure.
-				for reader.Len() > 0 {
-					sample := [2]float64{0, 0}
-					var result float64
-					err = binary.Read(reader, binary.LittleEndian, &result)
-
-					if err != nil {
-						go func(err error) {
-							errs <- err
-						}(err)
+	// start SDL main loop
+	for running {
+		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+			switch t := event.(type) {
+			case *sdl.WindowEvent:
+				// resize the video
+				switch t.Event {
+				case sdl.WINDOWEVENT_SIZE_CHANGED:
+					if fitWindow {
+						vp.Resize(t.Data1, t.Data2)
 					}
-
-					sample[0] = result
-
-					err = binary.Read(reader, binary.LittleEndian, &result)
-
-					if err != nil {
-						go func(err error) {
-							errs <- err
-						}(err)
-					}
-
-					sample[1] = result
-					sampleBuffer <- sample
 				}
+			case *sdl.KeyboardEvent:
+				// close the app when ESC is pressed
+				if t.Keysym.Sym == sdl.K_ESCAPE {
+					running = false
+				}
+			case *sdl.QuitEvent:
+				running = false
+			case *sdl.UserEvent:
+				// render video frame texture
+				if event.GetType() == vp.FrameEvent {
+					renderer.Clear()
+					rec := &sdl.Rect{X: 0, Y: 0, W: vp.Width, H: vp.Height}
+					renderer.Copy(vp.Texture, rec, rec)
+					renderer.Present()
+				}
+			default:
 			}
 		}
-
-		videoStream.Close()
-		audioStream.Close()
-		media.CloseDecode()
-		close(frameBuffer)
-		close(sampleBuffer)
-		close(errs)
-	}()
-
-	return frameBuffer, sampleBuffer, errs, nil
-}
-
-// streamSamples creates a new custom streamer for
-// playing audio samples provided by the source channel.
-//
-// See https://github.com/faiface/beep/wiki/Making-own-streamers
-// for reference.
-func streamSamples(sampleSource <-chan [2]float64) beep.Streamer {
-	return beep.StreamerFunc(func(samples [][2]float64) (n int, ok bool) {
-		numRead := 0
-
-		for i := 0; i < len(samples); i++ {
-			sample, ok := <-sampleSource
-
-			if !ok {
-				numRead = i + 1
-				break
-			}
-
-			samples[i] = sample
-			numRead++
+		// get new frame and trigger frameEvent to render the frame
+		if info, err := vp.Update(); err != nil {
+			fmt.Println("Update error:", err)
+			return 1
+		} else {
+			window.SetTitle(info)
 		}
-
-		if numRead < len(samples) {
-			return numRead, false
-		}
-
-		return numRead, true
-	})
-}
-
-// Game holds all the data
-// necessary for playing video.
-type Game struct {
-	videoSprite            *ebiten.Image
-	ticker                 <-chan time.Time
-	errs                   <-chan error
-	frameBuffer            <-chan *image.RGBA
-	fps                    int
-	videoTotalFramesPlayed int
-	videoPlaybackFPS       int
-	perSecond              <-chan time.Time
-	last                   time.Time
-	deltaTime              float64
-}
-
-// Strarts reading samples and frames
-// of the media file.
-func (game *Game) Start(fname string) error {
-	// Initialize the audio speaker.
-	err := speaker.Init(sampleRate,
-		SpeakerSampleRate.N(time.Second/10))
-
-	if err != nil {
-		return err
+		sdl.Delay(16)
 	}
 
-	// Sprite for drawing video frames.
-	game.videoSprite, err = ebiten.NewImage(
-		width, height, ebiten.FilterDefault)
-
-	if err != nil {
-		return err
-	}
-
-	// Open the media file.
-	media, err := reisen.NewMedia(fname)
-
-	if err != nil {
-		return err
-	}
-
-	// Get the FPS for playing
-	// video frames.
-	videoFPS, _ := media.Streams()[0].FrameRate()
-
-	if err != nil {
-		return err
-	}
-
-	// SPF for frame ticker.
-	spf := 1.0 / float64(videoFPS)
-	frameDuration, err := time.
-		ParseDuration(fmt.Sprintf("%fs", spf))
-
-	if err != nil {
-		return err
-	}
-
-	// Start decoding streams.
-	var sampleSource <-chan [2]float64
-	game.frameBuffer, sampleSource,
-		game.errs, err = readVideoAndAudio(media)
-
-	if err != nil {
-		return err
-	}
-
-	// Start playing audio samples.
-	speaker.Play(streamSamples(sampleSource))
-
-	game.ticker = time.Tick(frameDuration)
-
-	// Setup metrics.
-	game.last = time.Now()
-	game.fps = 0
-	game.perSecond = time.Tick(time.Second)
-	game.videoTotalFramesPlayed = 0
-	game.videoPlaybackFPS = 0
-
-	return nil
-}
-
-func (game *Game) Update(screen *ebiten.Image) error {
-	// Compute dt.
-	game.deltaTime = time.Since(game.last).Seconds()
-	game.last = time.Now()
-
-	// Check for incoming errors.
-	select {
-	case err, ok := <-game.errs:
-		if ok {
-			return err
-		}
-
-	default:
-	}
-
-	// Read video frames and draw them.
-	select {
-	case <-game.ticker:
-		frame, ok := <-game.frameBuffer
-
-		if ok {
-			game.videoSprite.ReplacePixels(frame.Pix)
-
-			game.videoTotalFramesPlayed++
-			game.videoPlaybackFPS++
-		}
-
-	default:
-	}
-
-	// Draw the video sprite.
-	op := &ebiten.DrawImageOptions{}
-	err := screen.DrawImage(game.videoSprite, op)
-
-	if err != nil {
-		return err
-	}
-
-	game.fps++
-
-	// Update metrics in the window title.
-	select {
-	case <-game.perSecond:
-		ebiten.SetWindowTitle(fmt.Sprintf("%s | FPS: %d | dt: %f | Frames: %d | Video FPS: %d",
-			"Video", game.fps, game.deltaTime, game.videoTotalFramesPlayed, game.videoPlaybackFPS))
-
-		game.fps = 0
-		game.videoPlaybackFPS = 0
-
-	default:
-	}
-
-	return nil
-}
-
-func (game *Game) Layout(a, b int) (int, int) {
-	return width, height
+	return 0
 }
 
 func main() {
-	game := &Game{}
-	err := game.Start("demo.mp4")
-	handleError(err)
+	// get video file name
+	fileName := flag.String("f", "./demo.mp4", "file name")
+	audioOn := flag.Bool("a", true, "Audio on/off")
+	fitWindow := flag.Bool("fw", true, "Auto-size video to fit window size.")
+	flag.Parse()
 
-	ebiten.SetWindowSize(width, height)
-	ebiten.SetWindowTitle("Video")
-	err = ebiten.RunGame(game)
-	handleError(err)
-}
-
-func handleError(err error) {
-	if err != nil {
-		panic(err)
-	}
+	// play the video
+	os.Exit(playVideo(*fileName, *audioOn, *fitWindow))
 }

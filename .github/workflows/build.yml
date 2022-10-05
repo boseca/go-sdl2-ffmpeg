@@ -1,0 +1,56 @@
+# This workflow will run test and upload the coverage when push or pull_request is made on `dev` branch
+name: build
+
+on:
+  push:
+    branches: [ master, dev ]
+  pull_request:
+    branches: [ master, dev ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.17
+
+      - name: Download FFmpeg
+        run: |
+          sudo apt install libswscale-dev libavcodec-dev libavformat-dev libswresample-dev libavutil-dev libasound2-dev
+          sudo apt install libgl1-mesa-dev xorg-dev
+
+      - name: Download SDL2
+        run: |
+          apt-get install -y --no-install-recommends libsdl2-image-dev, libsdl2-mixer-dev, libsdl2-ttf-dev, libsdl2-gfx-dev
+
+      - name: Checkout the code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Cache Go
+        id: cache-go
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+     
+      - name: Run Test and get coverage
+        run: |
+          go test github.com/boseca/go-sdl2-ffmpeg/sfplay -covermode atomic -coverprofile=covprofile
+          sed -i "s/$(pwd|sed 's/\//\\\//g')/./g" covprofile # convert absolute path to relative path 
+      - name: Push test coverage
+        if: success()
+        continue-on-error: true
+        uses: shogo82148/actions-goveralls@v1
+        with:
+          path-to-profile: covprofile

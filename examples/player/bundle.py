@@ -1,4 +1,6 @@
 import os, fileinput, shutil
+# USAGE: 
+# ldd player.exe | python bundle.py
 
 bundleDirPath = os.path.abspath("bundle")
 os.makedirs(bundleDirPath, exist_ok=True)

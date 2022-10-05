@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 
-	"github.com/zergon321/reisen"
+	sfplay "github.com/boseca/go-sdl2-ffmpeg"
 )
 
 func main() {
 	// Open the media file by its name.
-	media, err := reisen.NewMedia("demo.mp4")
+	media, err := sfplay.NewMedia("demo.mp4")
 	handleError(err)
 	defer media.Close()
 	dur, err := media.Duration()
@@ -52,7 +52,7 @@ func main() {
 		// Read packets one by one. A packet
 		// can contain either a video frame
 		// or an audio frame.
-		var pkt *reisen.Packet
+		var pkt *sfplay.Packet
 		pkt, gotPacket, err = media.ReadPacket()
 		handleError(err)
 
@@ -65,8 +65,8 @@ func main() {
 		// Determine what stream
 		// the packet belongs to.
 		switch pkt.Type() {
-		case reisen.StreamVideo:
-			s := media.Streams()[pkt.StreamIndex()].(*reisen.VideoStream)
+		case sfplay.StreamVideo:
+			s := media.Streams()[pkt.StreamIndex()].(*sfplay.VideoStream)
 
 			if !s.Opened() {
 				err = s.Open()
@@ -98,8 +98,8 @@ func main() {
 			fmt.Println("Display picture number:", videoFrame.IndexDisplay())
 			fmt.Println()
 
-		case reisen.StreamAudio:
-			s := media.Streams()[pkt.StreamIndex()].(*reisen.AudioStream)
+		case sfplay.StreamAudio:
+			s := media.Streams()[pkt.StreamIndex()].(*sfplay.AudioStream)
 
 			if !s.Opened() {
 				err = s.Open()
