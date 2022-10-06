@@ -1,6 +1,6 @@
 SDL2 FFmpeg 
 ===========
-A simple go library for playing video and audio using the ffmpeg for decoding the video/audio and SDL2 for rendering the video.
+A simple go library for playing video and audio. It uses the FFmpeg for decoding the video/audio and SDL2 for rendering the video.
 The library is based on [Reisen](https://github.com/zergon321/reisen) library which is based on **libav** (i.e. **ffmpeg**).
 
 [![Build Status](https://github.com/boseca/go-sdl2-ffmpeg/workflows/build/badge.svg)](https://github.com/boseca/go-sdl2-ffmpeg/actions?query=workflow%3Abuild)
@@ -11,18 +11,18 @@ The library is based on [Reisen](https://github.com/zergon321/reisen) library wh
 ## Dependencies
 Following components are required for this library to work.
 
->Please note MSYS2 is required only if you need to build the project for Windows
-
 - [Go v1.17+](https://go.dev/dl/)
     - Windows   
-        GO should be installed on Windows OS when MSYS2 is used
+        >Go should be installed on Windows OS when MSYS2 is used.
 
-        - download and install on Windows OS (see [Go install](https://go.dev/doc/install))
+        - Download and install Go on Windows OS (see [Go install](https://go.dev/doc/install))
 
-        - set GO path in MSYS2   
-            `echo 'export PATH=/c/Program\ Files/Go/bin:$PATH' >> ~/.bashrc`
+        - Set Go path in MSYS2   
+            ```bash
+            echo 'export PATH=/c/Program\ Files/Go/bin:$PATH' >> ~/.bashrc
+            ```
         
-        - build GO package example
+        - Build Go package example
             ```bash
             gi clone https://github.com/faiface/pixel-examples.git
             cd platformer
@@ -31,15 +31,17 @@ Following components are required for this library to work.
             ./platformer.exe
             ```
 
-    - Linux
-        GO should be installed in default folder (see [Go install](https://go.dev/doc/install))
-        ```bash
-        rm -rf /usr/local/go && tar -C /usr/local -xzf go1.19.1.linux-amd64.tar.gz
-        export PATH=$PATH:/usr/local/go/bin
-        go version
-        ```
+    - Linux  
+        >Go should be installed in default folder (see [Go install](https://go.dev/doc/install)).
+        - Download and install Go
+            ```bash
+            rm -rf /usr/local/go && tar -C /usr/local -xzf go1.19.1.linux-amd64.tar.gz
+            export PATH=$PATH:/usr/local/go/bin
+            go version
+            ```
 
 - [MSYS2](http://www.msys2.org/) (for Windows)
+    >MSYS2 is required only if you need to build the project for Windows.
 
 - [GCC toolchain](https://gcc.gnu.org/)
     - Linux
@@ -60,13 +62,17 @@ Following components are required for this library to work.
 - [SDL2](http://libsdl.org/download-2.0.php)
     - [go-sdl2](https://github.com/veandco/go-sdl2)    
         - [requirements](https://github.com/veandco/go-sdl2#requirements)  
-            SDL2 libraries has to be installed for `go-sdl2` to work
+            >SDL2 libraries has to be installed for `go-sdl2` to work.
 
-            - For Ubuntu 22.04 and above  
-                `apt install libsdl2{,-image,-mixer,-ttf,-gfx}-dev`
+            - For **Ubuntu 22.04** and above  
+                ```bash
+                apt install libsdl2{,-image,-mixer,-ttf,-gfx}-dev
+                ```
 
-            - For Windows (MSYS2)   
-                `pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2{,_image,_mixer,_ttf,_gfx}`
+            - For **Windows** (MSYS2)   
+                ```bash
+                pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2{,_image,_mixer,_ttf,_gfx}
+                ```
         
         - [Installation](https://github.com/veandco/go-sdl2#installation)  
             ```bash
@@ -76,9 +82,9 @@ Following components are required for this library to work.
             go get -v github.com/veandco/go-sdl2/ttf # optional
             go get -v github.com/veandco/go-sdl2/gfx # optional
             ```
-- [FFmpeg]
+- [FFmpeg](https://ffmpeg.org)
     - Linux
-        - [Libav](https://libav.org/) (ffmpeg)
+        - [Libav](https://libav.org/) (FFmpeg)
             - **libavformat**
             - **libavcodec**
             - **libavutil**
@@ -86,29 +92,28 @@ Following components are required for this library to work.
             - **libswscale**
             - **libasound2**
 
-        For **Arch**-based **Linux** distributions:
+        - For **Arch**-based **Linux** distributions
+            ```bash
+            sudo pacman -S ffmpeg
+            ```
 
-        ```bash
-        sudo pacman -S ffmpeg
-        ```
+        - For **Debian**-based **Linux** distributions
+            ```bash
+            sudo apt install libswscale-dev libavcodec-dev libavformat-dev libswresample-dev libavutil-dev libasound2-dev
+            sudo apt install libgl1-mesa-dev xorg-dev # adds X11/Xlib.h
+            ```
 
-        For **Debian**-based **Linux** distributions:
-
-        ```bash
-        sudo apt install libswscale-dev libavcodec-dev libavformat-dev libswresample-dev libavutil-dev libasound2-dev
-        sudo apt install libgl1-mesa-dev xorg-dev # adds X11/Xlib.h
-        ```
-
-        For **macOS**:
-
-        ```bash
-        brew install libav
-        ```
+        - For **macOS**
+            ```bash
+            brew install libav
+            ```
 
     - Windows (MSYS2)
-        `pacman -S mingw-w64-x86_64-ffmpeg`
+        ```bash
+        pacman -S mingw-w64-x86_64-ffmpeg
+        ```
 
-    For **Windows** see the [detailed tutorial](https://medium.com/@maximgradan/how-to-easily-bundle-your-cgo-application-for-windows-8515d2b19f1e).
+        >See the [detailed tutorial](https://medium.com/@maximgradan/how-to-easily-bundle-your-cgo-application-for-windows-8515d2b19f1e).
 
 ## Installation
 
@@ -117,24 +122,29 @@ go get github.com/boseca/go-sdl2-ffmpeg
 ```
 
 ## Packaging 
-Copy all binaaries necessary to run the applicaiton into the `bundle` folder
-`ldd player.exe | python bundle.py`
+Copy all binaries necessary to run the applicaiton into the `bundle` folder
+```bash
+ldd player.exe | python bundle.py
+```
 
 ## Test
 
-### Run
-Run tests for `sfplay` package
-`go test -v github.com/boseca/go-sdl2-ffmpeg/sfplay`
+- Run tests for `sfplay` package
+    ```bash
+    go test -v github.com/boseca/go-sdl2-ffmpeg/sfplay
+    ```
 
-### Build
-Build the test project and play a demo video
-- Linux
-    `cd examples/player && go build -x -o player *.go && ./run.sh`
-- Windows (MSYS2)
-    `cd examples/player && go build -ldflags "-s -w -H=windowsgui" && ./run.bat`
->Info
-    -s and -w options are required to strip the unneeded debug symbols from the executable and 
-    -H is required to suppress the launch of the command line when we start the application.
+- Build the test project and play a demo video
+    - Linux
+        ```bash
+        cd examples/player && go build -x -o player *.go && ./run.sh
+        ```
+    - Windows (MSYS2)
+        ```bash
+        cd examples/player && go build -ldflags "-s -w -H=windowsgui" && ./run.bat
+        ```
+        >-s and -w options are required to strip the unneeded debug symbols from the executable and  
+        >-H is required to suppress the launch of the command line when we start the application.
 
 ## Usage
 
